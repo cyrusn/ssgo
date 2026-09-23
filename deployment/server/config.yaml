@@ -1,0 +1,6 @@
+key: "skh li ping secondary school"
+dsn: "./database/master.sqlite"
+port: ":4000"
+static: "./public"
+overwrite: false
+time: 30 # expireAt for jwt in minutes

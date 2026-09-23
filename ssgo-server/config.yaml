@@ -1,0 +1,5 @@
+dsn: "../database/master.sqlite"
+overwrite: false
+port: ":5000"
+static: "./public"
+time: 30

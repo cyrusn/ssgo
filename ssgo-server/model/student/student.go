@@ -1,0 +1,154 @@
+package student
+
+import (
+	"database/sql"
+	"encoding/json"
+	"time"
+)
+
+type DB struct {
+	*sql.DB
+}
+
+// Student stores information for student user.
+type Student struct {
+	UserAlias   string       `json:"userAlias"`
+	ClassCode   string       `json:"classCode"`
+	ClassNo     int          `json:"classNo"`
+	Priorities  []int        `json:"priorities"`
+	IsX3        bool         `json:"isX3"`
+	IsConfirmed bool         `json:"isConfirmed"`
+	Rank        int          `json:"rank"`
+	Timestamp   sql.NullTime `json:"timestamp"`
+	Name        string       `json:"name"`
+	Cname       string       `json:"cname"`
+}
+// Insert add new student to database.
+func (db *DB) Insert(s *Student) error {
+	bPriorities, err := json.Marshal(s.Priorities)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(
+		`INSERT INTO Student (
+			userAlias,
+			classCode,
+			classNo,
+			priorities,
+			isX3,
+			isConfirmed,
+			ranking
+		) values (?, ?, ?, ?, ?, ?, ?)`,
+		s.UserAlias,
+		s.ClassCode,
+		s.ClassNo,
+		bPriorities,
+		s.IsX3,
+		s.IsConfirmed,
+		s.Rank,
+	)
+	return err
+}
+
+// UpdatePriorities will update student's priorities.
+func (db *DB) UpdatePriorities(userAlias string, priorities []int) error {
+	bPriorities, err := json.Marshal(priorities)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(
+		"UPDATE Student set priorities = ? WHERE (userAlias = ? and isConfirmed = false)",
+		bPriorities,
+		userAlias,
+	)
+	return err
+}
+
+// UpdateIsConfirmed will update student's isConfirmed.
+func (db *DB) UpdateIsConfirmed(userAlias string, isConfirmed bool) error {
+	var timestamp sql.NullTime
+	if isConfirmed {
+		timestamp = sql.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		}
+	}
+
+	_, err := db.Exec(
+		"UPDATE Student set isConfirmed = ?, timestamp = ? WHERE userAlias = ?",
+		isConfirmed,
+		timestamp,
+		userAlias,
+	)
+	return err
+}
+
+// UpdateIsX3 will update student's isX3.
+func (db *DB) UpdateIsX3(userAlias string, isX3 bool) error {
+
+	_, err := db.Exec(
+		"UPDATE Student set isX3 = ? WHERE userAlias = ?",
+		isX3,
+		userAlias,
+	)
+	return err
+}
+
+// UpdateRank will update student's isConfirmed.
+func (db *DB) UpdateRank(userAlias string, rank int) error {
+	_, err := db.Exec(
+		"UPDATE Student set ranking = ? WHERE userAlias = ?",
+		rank,
+		userAlias,
+	)
+	return err
+}
+
+// Get query student by userAlias.
+func (db *DB) Get(userAlias string) (*Student, error) {
+	s := new(Student)
+	row := db.QueryRow(
+		`SELECT 
+			s.* , c.name, c.cname
+	FROM Student as s
+	LEFT JOIN Credential as c ON
+	 	s.userAlias=c.userAlias
+	WHERE s.userAlias=?`,
+		userAlias)
+	err := s.scanStudent(row)
+	if err != nil {
+		return nil, err
+	}
+
+	return s, nil
+}
+
+// List get all students.
+func (db *DB) List() ([]*Student, error) {
+	var list []*Student
+	rows, err := db.Query(`
+	SELECT 
+			s.* , c.name, c.cname
+	FROM Student as s
+	LEFT JOIN Credential as c ON
+			s.userAlias=c.userAlias
+	`)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		s := new(Student)
+		err := s.scanStudent(rows)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, s)
+	}
+
+	return list, nil
+}

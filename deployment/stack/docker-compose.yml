@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  server:
+    image: ssgo-server:latest
+    ports:
+      - "127.0.0.1:6612:4000"
+    volumes:
+      - ./database:/usr/src/database
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
